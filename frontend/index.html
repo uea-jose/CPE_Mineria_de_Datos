@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análisis de Transferencias Bancarias</title>
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<!-- Tipografía -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Estilos propios -->
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="container-fluid">
+  <div class="dashboard-container">
+
+    <!-- ================= CABECERA ================= -->
+    <header class="app-header">
+      <div class="app-header-text">
+        <h1 class="app-title">Análisis de Transferencias Bancarias</h1>
+        <p class="app-subtitle">Segmentación de cuentas y detección de comportamientos atípicos</p>
+      </div>
+      <div class="app-header-badge">
+        <i class="bi bi-cpu"></i>
+        <span>K-Means + Isolation Forest</span>
+      </div>
+    </header>
+
+    <!-- ================= BUSCADOR DE CUENTA ================= -->
+    <section class="search-panel" aria-label="Consulta de cuenta">
+      <form id="formConsulta" class="search-form" novalidate>
+        <div class="search-field">
+          <label for="inputCuenta" class="search-label">Cuenta</label>
+          <div class="search-input-group">
+            <span class="search-icon"><i class="bi bi-search"></i></span>
+            <input
+              type="text"
+              id="inputCuenta"
+              class="form-control search-input"
+              placeholder="cue_2080926275 o 2080926275"
+              autocomplete="off"
+              spellcheck="false"
+              required
+              aria-required="true"
+              aria-describedby="cuentaAyuda estadoErrorTexto">
+          </div>
+          <p id="cuentaAyuda" class="search-help">Puedes ingresar la cuenta con o sin el prefijo <strong>cue_</strong>.</p>
+        </div>
+        <button type="submit" id="btnAnalizar" class="btn-analizar" title="Analizar cuenta" aria-label="Analizar cuenta">
+          <i id="btnAnalizarIcono" class="bi bi-search" aria-hidden="true"></i>
+          <span id="btnAnalizarTexto">ANALIZAR</span>
+          <span id="btnAnalizarSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        </button>
+        <button type="button" id="btnNuevaConsulta" class="btn-nueva" title="Nueva consulta" aria-label="Nueva consulta">
+          <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+          <span class="visually-hidden">Nueva consulta</span>
+        </button>
+      </form>
+
+      <!-- Estado de carga -->
+      <div id="estadoCarga" class="estado-carga d-none" role="status" aria-live="polite" aria-atomic="true">
+        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+        <span>Analizando cuenta...</span>
+      </div>
+
+      <!-- Confirmación de consulta completada -->
+      <div id="estadoExito" class="estado-exito d-none" role="status" aria-live="polite" aria-atomic="true">
+        <i class="bi bi-check-circle" aria-hidden="true"></i>
+        <span id="estadoExitoTexto"></span>
+      </div>
+
+      <!-- Estado de error -->
+      <div id="estadoError" class="estado-error d-none" role="alert" aria-live="assertive" aria-atomic="true">
+        <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+        <span id="estadoErrorTexto"></span>
+      </div>
+    </section>
+
+    <!-- ================= ESTADO INICIAL (sin datos aún) ================= -->
+    <section id="estadoInicial" class="empty-state">
+      <i class="bi bi-bar-chart-line empty-state-icon"></i>
+      <h2>Ingresa una cuenta para comenzar el análisis.</h2>
+      <p>Los indicadores de segmentación y comportamiento aparecerán aquí una vez consultada la cuenta.</p>
+    </section>
+
+    <!-- ================= CONTENIDO DEL DASHBOARD ================= -->
+    <div id="dashboardContent" class="d-none" aria-label="Resultados del análisis">
+
+      <!-- ---- Fila de tarjetas KPI (siempre visible tras consultar) ---- -->
+      <section class="kpi-row" aria-label="Indicadores principales">
+        <div class="kpi-grid">
+
+          <div class="kpi-card" id="kpiSegmento">
+            <div class="kpi-card-header">
+              <i class="bi bi-diagram-3 kpi-icon" aria-hidden="true"></i>
+              <span>Segmento de cuenta</span>
+            </div>
+            <div class="kpi-card-body">
+              <div class="kpi-valor" id="valorSegmento">—</div>
+              <span class="kpi-badge status-badge cluster-badge">
+                <i class="bi bi-diagram-3 badge-icon" aria-hidden="true"></i>
+                <span id="badgeCluster">Cluster —</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="kpi-card" id="kpiComportamiento">
+            <div class="kpi-card-header">
+              <i class="bi bi-activity kpi-icon" aria-hidden="true"></i>
+              <span>Comportamiento</span>
+            </div>
+            <div class="kpi-card-body">
+              <div class="kpi-valor" id="valorComportamiento">—</div>
+              <span class="kpi-badge status-badge profile-badge">
+                <i class="bi bi-shield-check badge-icon" aria-hidden="true"></i>
+                <span id="badgeClasificacion">—</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-card-header">
+              <i class="bi bi-arrow-left-right"></i>
+              <span>Transferencias</span>
+            </div>
+            <div class="kpi-card-body">
+              <div class="kpi-valor" id="valorTransferencias">—</div>
+              <span class="kpi-nota">operaciones registradas</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-card-header">
+              <i class="bi bi-cash-stack"></i>
+              <span>Monto total</span>
+            </div>
+            <div class="kpi-card-body">
+              <div class="kpi-valor" id="valorMontoTotal">—</div>
+              <span class="kpi-nota">acumulado histórico</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-card-header">
+              <i class="bi bi-graph-up-arrow"></i>
+              <span>Monto promedio</span>
+            </div>
+            <div class="kpi-card-body">
+              <div class="kpi-valor" id="valorMontoPromedio">—</div>
+              <span class="kpi-nota">por transferencia</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-card-header">
+              <i class="bi bi-people"></i>
+              <span>Destinos distintos</span>
+            </div>
+            <div class="kpi-card-body">
+              <div class="kpi-valor" id="valorDestinos">—</div>
+              <span class="kpi-nota">cuentas receptoras</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ---- Navegación por burbujas + área central ---- -->
+      <div class="dashboard-layout">
+
+        <nav class="bubble-nav" id="bubbleNav" aria-label="Navegación del dashboard">
+          <button type="button" class="nav-bubble active" data-vista="resumen" title="Ver resumen" aria-label="Ver resumen" aria-controls="vista-resumen" aria-current="page">
+            <span class="bubble-icon"><i class="bi bi-house-door" aria-hidden="true"></i></span>
+            <span class="bubble-label">Resumen</span>
+          </button>
+          <button type="button" class="nav-bubble" data-vista="actividad" title="Ver actividad" aria-label="Ver actividad" aria-controls="vista-actividad">
+            <span class="bubble-icon"><i class="bi bi-activity" aria-hidden="true"></i></span>
+            <span class="bubble-label">Actividad</span>
+          </button>
+          <button type="button" class="nav-bubble" data-vista="comportamiento" title="Ver comportamiento" aria-label="Ver comportamiento" aria-controls="vista-comportamiento">
+            <span class="bubble-icon"><i class="bi bi-person-lines-fill" aria-hidden="true"></i></span>
+            <span class="bubble-label">Comportamiento</span>
+          </button>
+          <button type="button" class="nav-bubble" data-vista="indicadores" title="Ver indicadores" aria-label="Ver indicadores" aria-controls="vista-indicadores">
+            <span class="bubble-icon"><i class="bi bi-bar-chart-line" aria-hidden="true"></i></span>
+            <span class="bubble-label">Indicadores</span>
+          </button>
+          <button type="button" class="nav-bubble" data-vista="tecnico" title="Ver detalles técnicos" aria-label="Ver detalles técnicos" aria-controls="vista-tecnico">
+            <span class="bubble-icon"><i class="bi bi-gear" aria-hidden="true"></i></span>
+            <span class="bubble-label">Técnico</span>
+          </button>
+        </nav>
+
+        <main class="dashboard-main">
+
+          <!-- ============ VISTA: RESUMEN ============ -->
+          <section class="vista-panel" id="vista-resumen" data-vista-panel="resumen">
+            <div class="panel-card panel-descripcion">
+              <div class="panel-descripcion-header">
+                <span class="cuenta-chip"><i class="bi bi-wallet2"></i> <span id="resumenCuenta">—</span></span>
+                <h3 id="resumenSegmentoNombre">—</h3>
+              </div>
+              <p id="resumenDescripcion" class="panel-descripcion-texto">
+                Consulta una cuenta para ver la descripción de su segmento.
+              </p>
+            </div>
+
+            <div class="mini-cards-grid">
+              <div class="mini-card">
+                <i class="bi bi-arrow-left-right"></i>
+                <div>
+                  <span class="mini-card-label">Transferencias</span>
+                  <span class="mini-card-valor" id="resumenTransferencias">—</span>
+                </div>
+              </div>
+              <div class="mini-card">
+                <i class="bi bi-cash-stack"></i>
+                <div>
+                  <span class="mini-card-label">Monto total</span>
+                  <span class="mini-card-valor" id="resumenMontoTotal">—</span>
+                </div>
+              </div>
+              <div class="mini-card">
+                <i class="bi bi-graph-up-arrow"></i>
+                <div>
+                  <span class="mini-card-label">Monto promedio</span>
+                  <span class="mini-card-valor" id="resumenMontoPromedio">—</span>
+                </div>
+              </div>
+              <div class="mini-card">
+                <i class="bi bi-people"></i>
+                <div>
+                  <span class="mini-card-label">Destinos distintos</span>
+                  <span class="mini-card-valor" id="resumenDestinos">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-card panel-advertencia">
+              <i class="bi bi-info-circle"></i>
+              <p id="resumenAdvertencia">
+                Un perfil atípico no confirma fraude. El análisis describe el comportamiento histórico de la cuenta.
+              </p>
+            </div>
+          </section>
+
+          <!-- ============ VISTA: ACTIVIDAD ============ -->
+          <section class="vista-panel d-none" id="vista-actividad" data-vista-panel="actividad">
+            <div class="mini-cards-grid mini-cards-grid-6">
+              <div class="mini-card">
+                <i class="bi bi-arrow-left-right"></i>
+                <div>
+                  <span class="mini-card-label">Número de transferencias</span>
+                  <span class="mini-card-valor" id="actividadTransferencias">—</span>
+                </div>
+              </div>
+              <div class="mini-card">
+                <i class="bi bi-cash-stack"></i>
+                <div>
+                  <span class="mini-card-label">Monto total</span>
+                  <span class="mini-card-valor" id="actividadMontoTotal">—</span>
+                </div>
+              </div>
+              <div class="mini-card">
+                <i class="bi bi-graph-up-arrow"></i>
+                <div>
+                  <span class="mini-card-label">Monto promedio</span>
+                  <span class="mini-card-valor" id="actividadMontoPromedio">—</span>
+                </div>
+              </div>
+              <div class="mini-card">
+                <i class="bi bi-arrow-up-circle"></i>
+                <div>
+                  <span class="mini-card-label">Monto máximo</span>
+                  <span class="mini-card-valor" id="actividadMontoMaximo">—</span>
+                </div>
+              </div>
+              <div class="mini-card">
+                <i class="bi bi-people"></i>
+                <div>
+                  <span class="mini-card-label">Destinos distintos</span>
+                  <span class="mini-card-valor" id="actividadDestinos">—</span>
+                </div>
+              </div>
+              <div class="mini-card">
+                <i class="bi bi-calendar3"></i>
+                <div>
+                  <span class="mini-card-label">Días con actividad</span>
+                  <span class="mini-card-valor" id="actividadDias">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <h4 class="panel-subtitulo"><i class="bi bi-rulers"></i> Relación entre montos</h4>
+              <div class="comparativa-montos">
+                <div class="comparativa-fila">
+                  <span class="comparativa-label">Monto promedio</span>
+                  <div class="barra-horizontal">
+                    <div class="barra-relleno barra-promedio" id="barraMontoPromedio"></div>
+                  </div>
+                  <span class="comparativa-valor" id="comparativaMontoPromedio">—</span>
+                </div>
+                <div class="comparativa-fila">
+                  <span class="comparativa-label">Monto máximo</span>
+                  <div class="barra-horizontal">
+                    <div class="barra-relleno barra-maximo" id="barraMontoMaximo"></div>
+                  </div>
+                  <span class="comparativa-valor" id="comparativaMontoMaximo">—</span>
+                </div>
+              </div>
+              <p class="panel-nota">La barra muestra la proporción de cada monto respecto al monto máximo registrado.</p>
+            </div>
+          </section>
+
+          <!-- ============ VISTA: COMPORTAMIENTO ============ -->
+          <section class="vista-panel d-none" id="vista-comportamiento" data-vista-panel="comportamiento">
+            <div class="panel-card panel-descripcion">
+              <div class="panel-descripcion-header">
+                    <h3 id="comportamientoSegmentoNombre">—</h3>
+                    <span class="kpi-badge status-badge cluster-badge">
+                      <i class="bi bi-diagram-3 badge-icon" aria-hidden="true"></i>
+                      <span id="comportamientoBadgeCluster">Cluster —</span>
+                    </span>
+              </div>
+              <p id="comportamientoDescripcion" class="panel-descripcion-texto">—</p>
+              <div class="clasificacion-destacada" id="comportamientoClasificacionBox">
+                <i class="bi bi-shield-check"></i>
+                <span id="comportamientoClasificacionTexto">—</span>
+              </div>
+            </div>
+
+            <h4 class="panel-subtitulo seccion-espaciada"><i class="bi bi-search-heart"></i> Por qué luce así este perfil</h4>
+            <div class="mini-cards-grid mini-cards-grid-4">
+              <div class="mini-card">
+                <i class="bi bi-calendar-week"></i>
+                <div>
+                  <span class="mini-card-label">Fin de semana</span>
+                  <span class="mini-card-valor" id="comportamientoFinSemana">—</span>
+                </div>
+              </div>
+              <div class="mini-card">
+                <i class="bi bi-moon-stars"></i>
+                <div>
+                  <span class="mini-card-label">Nocturnas</span>
+                  <span class="mini-card-valor" id="comportamientoNocturnas">—</span>
+                </div>
+              </div>
+              <div class="mini-card">
+                <i class="bi bi-phone"></i>
+                <div>
+                  <span class="mini-card-label">Canal móvil</span>
+                  <span class="mini-card-valor" id="comportamientoCanalMovil">—</span>
+                </div>
+              </div>
+              <div class="mini-card">
+                <i class="bi bi-exclamation-diamond"></i>
+                <div>
+                  <span class="mini-card-label">Montos atípicos</span>
+                  <span class="mini-card-valor" id="comportamientoMontosAtipicos">—</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============ VISTA: INDICADORES ============ -->
+          <section class="vista-panel d-none" id="vista-indicadores" data-vista-panel="indicadores">
+            <div class="panel-card">
+              <h4 class="panel-subtitulo"><i class="bi bi-bar-chart-line"></i> Porcentajes de comportamiento</h4>
+
+              <div class="indicador-barra">
+                <div class="indicador-barra-encabezado">
+                  <span><i class="bi bi-calendar-week"></i> Fin de semana</span>
+                  <span id="indFinSemanaValor">—</span>
+                </div>
+                <div class="progress indicador-progress" role="progressbar" aria-label="Porcentaje de operaciones en fin de semana" aria-valuemin="0" aria-valuemax="100">
+                  <div class="progress-bar indicador-progress-bar bar-fin-semana" id="indFinSemanaBarra" style="width:0%"></div>
+                </div>
+              </div>
+
+              <div class="indicador-barra">
+                <div class="indicador-barra-encabezado">
+                  <span><i class="bi bi-moon-stars"></i> Nocturnas</span>
+                  <span id="indNocturnasValor">—</span>
+                </div>
+                <div class="progress indicador-progress" role="progressbar" aria-label="Porcentaje de operaciones nocturnas" aria-valuemin="0" aria-valuemax="100">
+                  <div class="progress-bar indicador-progress-bar bar-nocturnas" id="indNocturnasBarra" style="width:0%"></div>
+                </div>
+              </div>
+
+              <div class="indicador-barra">
+                <div class="indicador-barra-encabezado">
+                  <span><i class="bi bi-phone"></i> Canal móvil</span>
+                  <span id="indCanalMovilValor">—</span>
+                </div>
+                <div class="progress indicador-progress" role="progressbar" aria-label="Porcentaje de operaciones por canal móvil" aria-valuemin="0" aria-valuemax="100">
+                  <div class="progress-bar indicador-progress-bar bar-canal-movil" id="indCanalMovilBarra" style="width:0%"></div>
+                </div>
+              </div>
+
+              <div class="indicador-barra">
+                <div class="indicador-barra-encabezado">
+                  <span><i class="bi bi-exclamation-diamond"></i> Montos atípicos</span>
+                  <span id="indMontosAtipicosValor">—</span>
+                </div>
+                <div class="progress indicador-progress" role="progressbar" aria-label="Porcentaje de montos atípicos" aria-valuemin="0" aria-valuemax="100">
+                  <div class="progress-bar indicador-progress-bar bar-montos-atipicos" id="indMontosAtipicosBarra" style="width:0%"></div>
+                </div>
+              </div>
+
+              <p class="panel-nota">Cada barra representa el porcentaje del total de transferencias de la cuenta con esa característica.</p>
+            </div>
+          </section>
+
+          <!-- ============ VISTA: TÉCNICO ============ -->
+          <section class="vista-panel d-none" id="vista-tecnico" data-vista-panel="tecnico">
+            <div class="panel-card">
+              <h4 class="panel-subtitulo"><i class="bi bi-gear"></i> Detalles técnicos del modelo</h4>
+              <div class="tecnico-grid">
+                <div class="tecnico-item">
+                  <span class="tecnico-label">Cluster técnico</span>
+                  <span class="tecnico-valor" id="tecnicoCluster">—</span>
+                </div>
+                <div class="tecnico-item">
+                  <span class="tecnico-label">Puntaje de atipicidad</span>
+                  <span class="tecnico-valor" id="tecnicoPuntaje">—</span>
+                </div>
+                <div class="tecnico-item">
+                  <span class="tecnico-label">Modelo utilizado</span>
+                  <span class="tecnico-valor" id="tecnicoModelo">—</span>
+                </div>
+                <div class="tecnico-item">
+                  <span class="tecnico-label">Evaluación de fraude</span>
+                  <span class="tecnico-valor" id="tecnicoFraude">—</span>
+                </div>
+                <div class="tecnico-item">
+                  <span class="tecnico-label">Evaluación crediticia</span>
+                  <span class="tecnico-valor" id="tecnicoCredito">—</span>
+                </div>
+              </div>
+              <div class="panel-card panel-advertencia panel-advertencia-tecnico">
+                <i class="bi bi-info-circle"></i>
+                <p id="tecnicoAdvertencia">
+                  Este modelo no determina fraude ni aprobación o rechazo de créditos.
+                </p>
+              </div>
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

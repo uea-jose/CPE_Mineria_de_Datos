@@ -1,0 +1,76 @@
+# =====================================================================
+# .gitignore (modo "allowlist")
+# El workspace contiene muchas tareas distintas. Aquí solo subimos la
+# aplicación: backend FastAPI + frontend web + notebook de modelado.
+# =====================================================================
+
+# 1) Por defecto, ignorar TODO
+*
+
+# 2) Permitir carpetas que vamos a recorrer
+!.gitignore
+!README.md
+!LICENSE
+!backend/
+!frontend/
+!notebooks/
+!data/
+!data/raw/
+
+# 3) Contenido del backend (código + artefactos del modelo)
+!backend/app/
+!backend/app/**
+!backend/tests/
+!backend/tests/**
+!backend/requirements.txt
+!backend/artefactos/
+!backend/artefactos/**
+
+# 4) Contenido del frontend
+!frontend/**
+
+# 5) Notebook de modelado
+!notebooks/*.ipynb
+
+# 6) Datos (solo mantener el archivo comprimido ligero;
+#    el CSV crudo (~92 MB) y el zip grande NO suben)
+# -> aquí no se "permite" nada dentro de data/raw/, así que queda vacío.
+
+# =====================================================================
+# EXCLUSIONES EXPLÍCITAS (aunque estén dentro de carpetas permitidas)
+# =====================================================================
+
+# Entornos virtuales y cachés de Python
+backend/.venv/
+backend/**/.venv/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Entornos virtuales en la raíz (por si acaso)
+.venv/
+venv/
+env/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Archivos sensibles
+*.env
+.env
+.env.*
+
+# Logs
+*.log
+
+# Datos crudos pesados (si por error entraran a backend)
+*.csv
+!backend/artefactos/*.csv
+!backend/artefactos/*.csv.gz
+
+# Jupyter checkpoints
+.ipynb_checkpoints/

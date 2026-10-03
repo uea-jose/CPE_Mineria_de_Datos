@@ -1,0 +1,58 @@
+{
+  "nombre_modelo": "K-Means + Isolation Forest",
+  "numero_grupos": 4,
+  "features": [
+    "log_num_transferencias",
+    "log_monto_total",
+    "log_monto_promedio",
+    "log_monto_maximo",
+    "log_destinos_distintos",
+    "transferencias_por_dia",
+    "diversidad_destinos",
+    "coef_variacion_monto",
+    "pct_fin_semana",
+    "pct_nocturnas",
+    "pct_canal_movil",
+    "pct_montos_atipicos"
+  ],
+  "grupos": {
+    "0": {
+      "nombre": "Uso frecuente",
+      "descripcion": "Cuenta con varias transferencias y diferentes destinos."
+    },
+    "1": {
+      "nombre": "Uso ocasional",
+      "descripcion": "Cuenta con pocas transferencias y montos pequeños."
+    },
+    "2": {
+      "nombre": "Montos elevados",
+      "descripcion": "Cuenta con pocas operaciones, pero con valores altos."
+    },
+    "3": {
+      "nombre": "Comportamiento diferente",
+      "descripcion": "Cuenta con un patrón poco común, principalmente asociado al uso de banca web y con mayor presencia de comportamientos atípicos."
+    }
+  },
+  "medianas_features": {
+    "log_num_transferencias": 1.3862943611198906,
+    "log_monto_total": 5.303304908059076,
+    "log_monto_promedio": 3.8642323415917974,
+    "log_monto_maximo": 4.61512051684126,
+    "log_destinos_distintos": 1.0986122886681096,
+    "transferencias_por_dia": 1.0,
+    "diversidad_destinos": 0.7142857142857143,
+    "coef_variacion_monto": 0.765114575864382,
+    "pct_fin_semana": 0.0,
+    "pct_nocturnas": 0.0,
+    "pct_canal_movil": 100.0,
+    "pct_montos_atipicos": 0.0
+  },
+  "versiones": {
+    "python": "3.13.15 (main, Aug 6 2026, 11:06:23) [GCC 11.4.0]",
+    "pandas": "2.2.3",
+    "numpy": "2.1.3",
+    "scikit_learn": "1.6.1",
+    "joblib": "1.5.3"
+  },
+  "advertencia": "El resultado describe el historial analizado. No confirma fraude, no aprueba créditos y no predice movimientos futuros."
+}
